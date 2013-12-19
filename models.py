@@ -32,8 +32,6 @@ class Movie:
 
         imdb_data = requests.get(url, headers=HEADERS)
 
-        print url
-
         regex = '<h1 class="header">.*<span class="itemprop" itemprop="name">(.*)<\/span>[\s\S]*' \
                 '<span class="nobr">\(<a href="\/year\/([\d+]*)[\s\S]*' \
                 '<meta itemprop="datePublished" content="(.*)"[\s\S]*' \
@@ -60,8 +58,7 @@ class Movie:
         r = requests.get('http://www.imdb.com/search/title?&title_type=feature&sort=moviemeter,asc',
                          headers=HEADERS)
 
-        ids = sorted(list(set(re.findall("""<a href=\"/title/([a-z][a-z]\d+)/""", r.text))),
-                     key=lambda m: m[0])
+        ids = set(re.findall("""<a href=\"/title/([a-z][a-z]\d+)/""", r.text)[0:50])
 
         for id in ids:
             t1 = time()
