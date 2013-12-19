@@ -61,14 +61,12 @@ class Movie:
         ids = set(re.findall("""<a href=\"/title/([a-z][a-z]\d+)/""", r.text)[0:50])
 
         for id in ids:
-            t1 = time()
             movie = Movie.get_movie_by_imdb_id(id)
-            print time()-t1
 
             if movie:
                 movies.append(movie)
 
-        return movies
+        return sorted(movies, key=lambda m: m.rating, reverse=True)
 
 
 class User:
