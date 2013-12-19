@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from time import time
 import re
 import requests
 import httplib
@@ -25,40 +26,34 @@ class Movie:
         return self.title
 
     @staticmethod
-    @cache.memoize(50)
+    @cache.memoize(60 * 60 * 24 * 7)
     def get_movie_by_imdb_id(id):
         url = 'http://www.imdb.com/title/%s/' % id
 
         imdb_data = requests.get(url, headers=HEADERS)
 
-        title = re.findall(
-            '<h1 class="header">.*<span class="itemprop" itemprop="name">(.*)<\/span>',
-            imdb_data.text
-        )
+        print url
 
-        year = re.findall(
-            '<span class="nobr">\(<a href="\/year\/([\d+]*)',
-            imdb_data.text
-        )
+        regex = '<h1 class="header">.*<span class="itemprop" itemprop="name">(.*)<\/span>[\s\S]*' \
+                '<span class="nobr">\(<a href="\/year\/([\d+]*)[\s\S]*' \
+                '<meta itemprop="datePublished" content="(.*)"[\s\S]*' \
+                '<span itemprop="ratingValue">([\d+.?]*)'
 
-        release_date = re.findall(
-            '<meta itemprop="datePublished" content="(.*)"',
-            imdb_data.text
-        )
+        data = re.findall(regex, imdb_data.text)
 
-        rating = re.findall(
-            '<span itemprop="ratingValue">([\d+.?]*)',
-            imdb_data.text
-        )
+        if data:
+            title, year, release_date, rating = data[0]
+            return Movie({'imdb_id': id,
+                          'url': url,
+                          'title': title if title else "",
+                          'release_date': release_date,
+                          'rating': rating,
+                          'year': year})
 
-        return Movie({'imdb_id': id,
-                      'url': url[0],
-                      'title': title[0] if title else "",
-                      'release_date': release_date[0] if release_date else "",
-                      'rating': rating[0] if rating else "",
-                      'year': year[0] if year else ""})
+        return None
 
     @staticmethod
+    @cache.memoize(60 * 60 * 24 * 7)
     def most_popular_feature_films():
         movies = []
 
@@ -69,7 +64,12 @@ class Movie:
                      key=lambda m: m[0])
 
         for id in ids:
-            movies.append(Movie.get_movie_by_imdb_id(id))
+            t1 = time()
+            movie = Movie.get_movie_by_imdb_id(id)
+            print time()-t1
+
+            if movie:
+                movies.append(movie)
 
         return movies
 
