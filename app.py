@@ -5,9 +5,8 @@ from flask.ext.cache import Cache
 
 app = Flask(__name__)
 app.config.update({
-    'DEBUG': False,
+    'DEBUG': True,
     'CACHE_TYPE': 'simple',
 })
 
 cache = Cache(app)
-

@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from time import time
 import re
 import requests
 import httplib
@@ -9,64 +8,98 @@ from app import cache
 HEADERS = {
     "Content-type": "application/x-www-form-urlencoded",
     "Accept": "text/plain",
-    "Accept-Language": 'en'
+    "Accept-Language": 'en-us'
 }
 
 
-class Movie:
+class IMDBObject:
     def __init__(self, data):
         self.imdb_id = data['imdb_id']
         self.title = data['title']
-        self.release_date = data['release_date']
         self.url = data['url']
         self.rating = data['rating']
-        self.year = data['year']
+        self.img = data['img']
 
     def __unicode__(self):
         return self.title
 
     @staticmethod
     @cache.memoize(60 * 60 * 24 * 7)
-    def get_movie_by_imdb_id(id):
-        url = 'http://www.imdb.com/title/%s/' % id
+    def get_by_imdb_id(id):
+        url = 'http://akas.imdb.com/title/%s/' % id
 
         imdb_data = requests.get(url, headers=HEADERS)
 
-        regex = '<h1 class="header">.*<span class="itemprop" itemprop="name">(.*)<\/span>[\s\S]*' \
-                '<span class="nobr">\(<a href="\/year\/([\d+]*)[\s\S]*' \
-                '<meta itemprop="datePublished" content="(.*)"[\s\S]*' \
+        regex = 'id="img_primary"[\s\S]*src="(.*)"[\s\S]*' \
+                '<h1 class="header">.*<span class="itemprop" itemprop="name">(.*)<\/span>[\s\S]*' \
                 '<span itemprop="ratingValue">([\d+.?]*)'
 
         data = re.findall(regex, imdb_data.text)
 
         if data:
-            title, year, release_date, rating = data[0]
-            return Movie({'imdb_id': id,
-                          'url': url,
-                          'title': title if title else "",
-                          'release_date': release_date,
-                          'rating': rating,
-                          'year': year})
+            img, title, rating = data[0]
+            return IMDBObject({'imdb_id': id,
+                               'url': url,
+                               'img': img,
+                               'title': title if title else "",
+                               'rating': rating,
+            })
 
         return None
 
     @staticmethod
     @cache.memoize(60 * 60 * 24 * 7)
-    def most_popular_feature_films():
-        movies = []
+    def top_moviemeter(url, max_elements=50):
 
-        r = requests.get('http://www.imdb.com/search/title?&title_type=feature&sort=moviemeter,asc',
-                         headers=HEADERS)
+        elements = []
+        start = 0
 
-        ids = set(re.findall("""<a href=\"/title/([a-z][a-z]\d+)/""", r.text)[0:50])
+        while start < max_elements:
+            request = requests.get(url + "&start=%s" % start, headers=HEADERS)
 
-        for id in ids:
-            movie = Movie.get_movie_by_imdb_id(id)
+            ids = set(re.findall("""<a href=\"/title/([a-z][a-z]\d+)/""", request.text)[0:50])
 
-            if movie:
-                movies.append(movie)
+            for id in ids:
+                imdb_element = IMDBObject.get_by_imdb_id(id)
 
-        return sorted(movies, key=lambda m: m.rating, reverse=True)
+                if imdb_element:
+                    elements.append(imdb_element)
+
+            start += 50
+
+        return sorted(elements, key=lambda m: m.rating, reverse=True)
+
+    @staticmethod
+    def most_popular():
+        raise NotImplementedError
+
+
+class Movie(IMDBObject):
+    @staticmethod
+    def most_popular():
+        return IMDBObject.top_moviemeter(
+            'http://www.imdb.com/search/title?sort=moviemeter,asc&title_type=feature')
+
+
+class TV(IMDBObject):
+    @staticmethod
+    def guess_epguide_name(show):
+        title = show.title.lower().strip()
+
+        if title.startswith("the"):
+            title = title[3:]
+
+        return title.replace(".", "").replace(" ", "")
+
+    @staticmethod
+    def most_popular():
+        shows = IMDBObject.top_moviemeter(
+            'http://www.imdb.com/search/title?sort=moviemeter,asc&title_type=tv_series')
+
+        for show in shows:
+            show.epguide = TV.guess_epguide_name(show)
+
+        return shows
 
 
 class User:
@@ -78,7 +111,7 @@ class User:
         movies = []
 
         rows = []
-        url = 'www.imdb.com'
+        url = 'akas.imdb.com'
         path = '/list/export?list_id=watchlist&author_id=%s' % self.imdb_user_id
         connection = httplib.HTTPConnection(url)
         connection.request("POST", path, '', HEADERS)
