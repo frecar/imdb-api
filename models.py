@@ -24,7 +24,7 @@ class IMDBObject:
         return self.title
 
     @staticmethod
-    @cache.memoize(60 * 60 * 24 * 7)
+    @cache.memoize(12 * 4 * 60 * 60 * 24 * 7)
     def get_by_imdb_id(id):
         url = 'http://akas.imdb.com/title/%s/' % id
 
@@ -75,13 +75,17 @@ class IMDBObject:
 
 
 class Movie(IMDBObject):
+
     @staticmethod
+    @cache.memoize(60 * 60 * 24 * 7)
     def most_popular():
         return IMDBObject.top_moviemeter(
-            'http://www.imdb.com/search/title?sort=moviemeter,asc&title_type=feature')
+            'http://www.imdb.com/search/title?sort=moviemeter,asc&title_type=feature',
+            max_elements=150)
 
 
 class TV(IMDBObject):
+
     @staticmethod
     def guess_epguide_name(show):
         title = show.title.lower().strip()
@@ -92,9 +96,11 @@ class TV(IMDBObject):
         return title.replace(".", "").replace(" ", "")
 
     @staticmethod
+    @cache.memoize(60 * 60 * 24 * 7)
     def most_popular():
         shows = IMDBObject.top_moviemeter(
-            'http://www.imdb.com/search/title?sort=moviemeter,asc&title_type=tv_series')
+            'http://www.imdb.com/search/title?sort=moviemeter,asc&title_type=tv_series',
+            max_elements=150)
 
         for show in shows:
             show.epguide = TV.guess_epguide_name(show)
@@ -106,6 +112,7 @@ class User:
     def __init__(self, imdb_user_id):
         self.imdb_user_id = imdb_user_id
 
+    @cache.memoize(60 * 60 * 24 * 7)
     def watchlist(self):
 
         movies = []
