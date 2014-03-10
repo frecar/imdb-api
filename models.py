@@ -81,7 +81,7 @@ class Movie(IMDBObject):
     def most_popular():
         return IMDBObject.top_moviemeter(
             'http://www.imdb.com/search/title?sort=moviemeter,asc&title_type=feature',
-            max_elements=150)
+            max_elements=50)
 
 
 class TV(IMDBObject):
@@ -100,7 +100,7 @@ class TV(IMDBObject):
     def most_popular():
         shows = IMDBObject.top_moviemeter(
             'http://www.imdb.com/search/title?sort=moviemeter,asc&title_type=tv_series',
-            max_elements=150)
+            max_elements=50)
 
         for show in shows:
             show.epguide = TV.guess_epguide_name(show)
